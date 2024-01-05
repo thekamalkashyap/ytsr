@@ -1,0 +1,40 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+use Mojo::UserAgent;
+use utf8;
+binmode STDIN, ":utf8";
+binmode STDOUT, ":utf8";
+binmode STDERR, ":utf8";
+
+my $query = "@ARGV" ne "" ?  join "+" , @ARGV : "Never+Gonna+Give+You+Up";
+my $invidious = $ENV{INVIDIOUS_URL} || "https://inv.n8pjl.ca/search?q=";
+my $url = $invidious . $query;
+my $fetch = Mojo::UserAgent->new;
+my $videos = $fetch->get($url)->result->dom->find('#contents .pure-g')->[1]->find('.h-box');
+my @video_titles;
+my @video_urls;
+my $i = 1;
+
+$videos->each(sub {
+    my $div = $_;
+    my $title = $div->find('.video-card-row a p')->[0]->text;
+    $title =~ tr{\n}{ };
+    my $href = $div->find('.video-card-row a')->[0]->attr('href');
+    push @video_titles, $i++ . ". $title";
+    push @video_urls, $href;
+});
+
+my $titles = join "\n" , @video_titles;
+my $selected_title = `echo "$titles" | fzf`;
+chomp $selected_title;
+# seperate number and title
+$selected_title =~ s/^(\d+)\.//;
+my $video_index = $1 - 1;
+# remove trailing spaces 
+# $selected_title =~ s/^\s+|\s+$//g;
+my $video_url = "https://www.youtube.com" . $video_urls[$video_index];
+# print "Playing: " . $selected_title . "\n";
+print $video_url . "\n";
+# exec "mpv --no-video --ao=pulse '$video_url' > /dev/null 2>&1";
